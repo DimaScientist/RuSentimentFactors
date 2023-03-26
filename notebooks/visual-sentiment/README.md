@@ -7,6 +7,7 @@ This directory contains studies of sentiment analysis methods for images
 * [EDA and Text Preprocessing](image_preprocessing_eda.ipynb)
 * [Deep Learning models](./deep_learning/README.md)
 * [Download images from Flickr](download_data.py)
+* [Generate image caption](generate_image_captioning.ipynb)
 
 ## Source data
 
