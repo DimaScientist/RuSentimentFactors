@@ -131,3 +131,5 @@ dmypy.json
 
 catboost_info
 *.csv
+data
+*.cfg
