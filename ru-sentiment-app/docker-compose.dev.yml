@@ -1,0 +1,29 @@
+version: '3.4'
+
+services:
+
+  dev-minio:
+    container_name: dev-minio
+    image: minio/minio:latest
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+
+
+  dev-clickhouse:
+    container_name: dev-clickhouse
+    image: yandex/clickhouse-server
+    ports:
+      - "8123:8123"
+      - "9002:9000"
+      - "9009:9009"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+
+volumes:
+  minio-data:
+  clickhouse-data:
