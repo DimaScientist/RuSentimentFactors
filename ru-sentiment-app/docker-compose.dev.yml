@@ -17,6 +17,7 @@ services:
   dev-clickhouse:
     container_name: dev-clickhouse
     image: yandex/clickhouse-server
+    restart: unless-stopped
     ports:
       - "8123:8123"
       - "9002:9000"

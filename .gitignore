@@ -133,3 +133,5 @@ catboost_info
 *.csv
 data
 *.cfg
+*.pkl
+*.dcfg

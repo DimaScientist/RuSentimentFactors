@@ -7,6 +7,7 @@ This directory contains studies of sentiment analysis methods for text data
 * [EDA and Text Preprocessing](text_preprocessing_eda.ipynb)
 * [Statistical Machine Learning methods](./statistical_methods/README.md)
 * [Deep Learning models](./deep_learning/README.md)
+* [Keywords extractor](./keywords_extraction.ipynb)
 
 ## Source data
 
