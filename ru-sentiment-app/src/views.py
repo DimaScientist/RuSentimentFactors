@@ -3,18 +3,24 @@ from __future__ import annotations
 
 import traceback
 from typing import List, Optional
-
 from uuid import UUID
+
 from fastapi import Depends, Form, HTTPException, UploadFile, Query
 from loguru import logger
 from requests import Request
 from starlette.responses import JSONResponse
 
-from src import app, services
+from src import app, configurations, services
 from src.clickhouse_client import ClickHouse, get_clickhouse
 from src.errors import NotAllowedException, NotFoundException, BadRequestException
 from src.minio_client import Minio, get_minio
-from src.schemas import DetailedPredictionData, HealthCheck, PredictionResult, Summary
+from src.schemas import (
+    DetailedPredictionData,
+    HealthCheck,
+    PredictionResult,
+    Summary,
+)
+from src.vk_api import VKAPI
 
 
 @app.exception_handler(NotAllowedException)
@@ -67,7 +73,7 @@ def healthcheck() -> HealthCheck:
 
 @app.post("/common/prediction")
 def get_prediction_by_text_and_images(
-    store: bool = False,
+    store: bool = Query(default=False, description="Store prediction result."),
     images: Optional[List[UploadFile]] = None,
     text: Optional[str] = Form(default=None),
     click_house: ClickHouse = Depends(get_clickhouse),
@@ -90,7 +96,7 @@ def get_prediction_details(
 @app.put("/common/prediction/{prediction_id}")
 def set_labeled_prediction(
     prediction_id: UUID,
-    sentiment: str = Form(...),
+    sentiment: str = Form(..., description="Sentiment class: negative, neutral or positive.", example="negative"),
     click_house: ClickHouse = Depends(get_clickhouse),
 ) -> None:
     """Set human label to prediction."""
@@ -103,10 +109,49 @@ def set_labeled_prediction(
 
 @app.get("/common/summary")
 def get_prediction_summary_result(
-    features: Optional[bool] = Query(None),
-    expand: Optional[bool] = Query(None),
+    features: Optional[bool] = Query(None, description="Add features."),
+    expand: Optional[bool] = Query(None, description="Add short prediction results."),
     click_house: ClickHouse = Depends(get_clickhouse),
 ) -> Summary:
     """Get sentiment statistic by data."""
     summary_result = services.get_prediction_summary(features, expand, click_house)
     return summary_result
+
+
+@app.get("/vk/post")
+def get_prediction_by_post(
+    post_url: str = Query(..., example="https://vk.com/iik.ssau?w=wall-57078572_4562", description="Post URL."),
+    api_token: Optional[str] = Query(default=None, descriprion="Access token to VK."),
+    click_house: ClickHouse = Depends(get_clickhouse),
+    minio: Minio = Depends(get_minio),
+) -> DetailedPredictionData:
+    """Get sentiment prediction by post."""
+    api_token = api_token or configurations.VK_TOKEN
+    vk_api = VKAPI(api_token)
+    result = services.get_prediction_for_vk_post(post_url, vk_api, click_house, minio)
+    return result
+
+
+@app.get("/vk/wall")
+def get_prediction_by_wall(
+    owner_url: str = Query(..., example="https://vk.com/iik.ssau", description="Group or user URL."),
+    features: Optional[bool] = Query(None, description="Add features."),
+    expand: Optional[bool] = Query(None, description="Add short prediction results."),
+    api_token: Optional[str] = Query(default=None, descriprion="Access token to VK."),
+    post_count: int = Query(default=10, ge=1, le=100, description="Wall post count."),
+    click_house: ClickHouse = Depends(get_clickhouse),
+    minio: Minio = Depends(get_minio),
+) -> Summary:
+    """Get sentiment summary for wall."""
+    api_token = api_token or configurations.VK_TOKEN
+    vk_api = VKAPI(api_token)
+    result = services.get_summary_prediction_for_vk_wall(
+        owner_url,
+        vk_api,
+        click_house,
+        minio,
+        features,
+        expand,
+        post_count,
+    )
+    return result

@@ -54,7 +54,6 @@ class ClickHouse:
             SELECT
             id,
             post_id,
-            post_url,
             text,
             predicted_value,
             text_prediction_details_id
@@ -68,12 +67,11 @@ class ClickHouse:
         result = DetailedPredictionData(
             id=row[0],
             post_id=row[1],
-            post_url=row[2],
-            text=row[3],
-            predicted_value=row[4],
+            text=row[2],
+            predicted_value=row[3],
         )
 
-        if text_prediction_details_id := row[5]:
+        if text_prediction_details_id := row[4]:
             text_prediction_details = self.get_prediction_details_by_id(
                 text_prediction_details_id,
             )
@@ -230,7 +228,6 @@ class ClickHouse:
         self,
         prediction: PredictionResult,
         post_id: Optional[str] = None,
-        post_url: Optional[str] = None,
         text: Optional[str] = None,
         clean_text: Optional[str] = None,
     ) -> uuid.UUID:
@@ -239,7 +236,6 @@ class ClickHouse:
         column_names = [
             "id",
             "post_id",
-            "post_url",
             "text",
             "clean_text",
             "predicted_value",
@@ -257,7 +253,6 @@ class ClickHouse:
             (
                 prediction_id,
                 post_id,
-                post_url,
                 text,
                 clean_text,
                 prediction.prediction_result,
@@ -269,31 +264,31 @@ class ClickHouse:
 
         return prediction_id
 
-    def count(self, table: Tables) -> int:
+    def count(self, table: Tables, table_ids: Optional[List[uuid.UUID]] = None) -> int:
         """Get total row count in table."""
         parameters = {"table": table.value}
-        return self.client.command("SELECT count() FROM {table:Identifier}", parameters=parameters)
+        query = "SELECT count() FROM {table:Identifier}"
+        if table_ids:
+            query += f""" WHERE id IN ({", ".join([f"'{str(table_id)}'" for table_id in table_ids])})"""
 
-    def get_predictions(self) -> List[ShortPrediction]:
+        return self.client.command(query, parameters=parameters)
+
+    def get_predictions(self, prediction_ids: Optional[List[uuid.UUID]] = None) -> List[ShortPrediction]:
         """Get predictions."""
-        query = self.client.query(
-            """
-            SELECT 
-            id,
-            post_id,
-            post_url,
-            predicted_value
-            FROM prediction 
-            """
-        )
+        query = """SELECT id, post_id, predicted_value FROM prediction"""
+
+        if prediction_ids:
+            query += f"""\nWHERE id IN ({", ".join([f"'{str(prediction_id)}'" for prediction_id in prediction_ids])})"""
+
+        query = self.client.query(query)
+
         result = []
         for row in query.result_rows:
             result.append(
                 ShortPrediction(
                     id=row[0],
                     post_id=row[1],
-                    post_url=row[2],
-                    predicted_value=row[3],
+                    predicted_value=row[2],
                 )
             )
 
@@ -303,24 +298,30 @@ class ClickHouse:
         self,
         add_features: bool = False,
         add_predictions: bool = False,
+        prediction_ids: Optional[List[uuid.UUID]] = None,
     ) -> Summary:
         """Get prediction summary."""
-        row_count = self.count(Tables.prediction)
+        row_count = self.count(Tables.prediction, prediction_ids)
 
         parameters = {
             "table": Tables.prediction.value,
             "group_column": "predicted_value",
         }
-        query_result = self.client.query(
-            """
-            SELECT 
-                {group_column:Identifier},
-                count() AS predicted_count
-            FROM {table:Identifier}
-            GROUP BY {group_column:Identifier}
-            """,
-            parameters=parameters,
-        )
+
+        query = """
+        SELECT
+            {group_column:Identifier},
+            count() AS predicted_count
+        FROM {table:Identifier}
+        """
+
+        if prediction_ids:
+            query += f"""\nWHERE id IN ({", ".join([f"'{str(prediction_id)}'" for prediction_id in prediction_ids])})"""
+
+        query += "\nGROUP BY {group_column:Identifier}"
+
+        query_result = self.client.query(query, parameters=parameters)
+
         summary_result = {}
         for row in query_result.result_rows:
             summary_result[row[0]] = row[1] / row_count
@@ -350,7 +351,7 @@ class ClickHouse:
             result.features = SentimentFeatures(**sentiment_features)
 
         if add_predictions:
-            result.predictions = self.get_predictions()
+            result.predictions = self.get_predictions(prediction_ids)
 
         return result
 

@@ -45,7 +45,6 @@ class Tables(Enum):
         (
             id             UUID comment 'Primary Key',
             post_id Nullable(String) comment 'Post ID in social media',
-            post_url Nullable(String) comment 'Post URL in social media',
             text Nullable(String) comment 'Text in post',
             clean_text Nullable(String) comment 'Clean post text',
             predicted_value String comment 'Predicted sentiment value',
@@ -67,7 +66,7 @@ class Tables(Enum):
             bucket        String comment 'MinIO bucket',
             key           String comment 'MinIO key',
             caption Nullable(String) comment 'Image caption',
-            prediction_id UUID comment 'Prediction Foreign Key caption',
+            prediction_id Nullable(UUID) comment 'Prediction Foreign Key caption',
             prediction_details_id Nullable(UUID) comment 'Prediction details',
             filename String comment 'Image file name'
         )

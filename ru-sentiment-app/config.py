@@ -39,7 +39,7 @@ class Config(BaseConfig):
     """Configuration for service."""
 
     DEBUG: bool = True
-    VK_TOKEN: str = ""
+    VK_TOKEN: str
     HOST: str = "0.0.0.0"
     PORT: int = 5000
     ROOT_PATH: str = ""

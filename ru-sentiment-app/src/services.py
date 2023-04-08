@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import io
+import uuid
 
+from loguru import logger
 from typing import TYPE_CHECKING
+from tqdm import tqdm
 from PIL import Image
 
 from models import predict_captions
@@ -16,7 +19,8 @@ if TYPE_CHECKING:
     from uuid import UUID
     from src.clickhouse_client import ClickHouse
     from src.minio_client import Minio
-    from src.schemas import DetailedPredictionData, Summary
+    from src.schemas import DetailedPredictionData, DownloadedPostFromVK, Summary
+    from src.vk_api import VKAPI
 
 
 ml_sentiment_model = MLSentimentModel()
@@ -87,3 +91,73 @@ def get_prediction_details(
 ) -> DetailedPredictionData:
     """Get prediction details."""
     return click_house.get_prediction_by_id(prediction_id)
+
+
+def predict_and_store_result_for_post(post: DownloadedPostFromVK, click_house: ClickHouse) -> uuid.UUID:
+    """Predict sentiment for post and store result."""
+    text = post.text
+    images = []
+    captions = []
+    for image_info in post.saved_images:
+        pil_image = image_info.image
+        caption = image_info.caption or predict_captions([pil_image])[0]
+
+        images.append(pil_image)
+        captions.append(caption)
+
+    prediction_result = ml_sentiment_model.predict(text, images, captions)
+
+    prediction_id = click_house.insert_prediction(
+        prediction=prediction_result,
+        post_id=post.post_id,
+        text=text,
+    )
+
+    if images:
+        click_house.insert_images(
+            prediction_id=prediction_id,
+            image_details=prediction_result.prediction_details.image_sentiment,
+            images=post.saved_images,
+        )
+
+    return prediction_id
+
+
+def get_prediction_for_vk_post(
+    post_url: str,
+    vk_api: VKAPI,
+    click_house: ClickHouse,
+    minio: Minio,
+) -> DetailedPredictionData:
+    """Get prediction for VK post."""
+    post_id = post_url.split("wall")[-1]
+    post = vk_api.get_post_by_id(post_id, minio)
+
+    prediction_id = predict_and_store_result_for_post(post, click_house)
+
+    result = get_prediction_details(prediction_id, click_house)
+
+    return result
+
+
+def get_summary_prediction_for_vk_wall(
+    owner_url: str,
+    vk_api: VKAPI,
+    click_house: ClickHouse,
+    minio: Minio,
+    features: bool = False,
+    expand: bool = False,
+    post_count: int = 10,
+) -> Summary:
+    """Get summary for wall."""
+    owner = owner_url.split("/")[-1]
+    posts = vk_api.get_posts_by_wall(owner, minio, post_count)
+
+    prediction_ids = []
+    logger.info(f"Predict sentiment for posts from owner {owner_url} wall:")
+    for post in tqdm(posts):
+        prediction_id = predict_and_store_result_for_post(post, click_house)
+        prediction_ids.append(prediction_id)
+
+    result = click_house.prediction_summary(features, expand, prediction_ids)
+    return result

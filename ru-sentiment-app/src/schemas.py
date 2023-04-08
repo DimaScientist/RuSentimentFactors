@@ -1,8 +1,8 @@
 """PyDantic Schemas for service."""
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, root_validator
-from typing import Any, Dict, List, Optional
 
 
 class ErrorOut(BaseModel):
@@ -86,7 +86,6 @@ class PredictionTable(BaseModel):
 
     id: UUID
     post_id: Optional[str] = None
-    post_url: Optional[str] = None
     text: Optional[str] = None
     clean_text: Optional[str] = None
     predicted_value: str
@@ -107,7 +106,6 @@ class ShortPrediction(BaseModel):
 
     id: UUID
     post_id: Optional[str] = None
-    post_url: Optional[str] = None
     predicted_value: str
 
 
@@ -124,7 +122,7 @@ class SavedMinioImage(BaseModel):
     bucket: str
     key: str
     image_url: Optional[str] = None
-    caption: str
+    caption: Optional[str] = None
     filename: str
 
 
@@ -142,8 +140,21 @@ class DetailedPredictionData(BaseModel):
 
     id: UUID
     post_id: Optional[str] = None
-    post_url: Optional[str] = None
     text: Optional[str] = None
     predicted_value: str
     text_prediction_details: Optional[SentimentPrediction] = None
     image_info: Optional[List[DetailedImageData]] = None
+
+
+class DownloadedFromVKImage(SavedMinioImage):
+    """Saved from VK images."""
+
+    image: Any
+
+
+class DownloadedPostFromVK(BaseModel):
+    """Saved from VK post."""
+
+    post_id: str
+    saved_images: Optional[List[DownloadedFromVKImage]] = None
+    text: Optional[str] = None

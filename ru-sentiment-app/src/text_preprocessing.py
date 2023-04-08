@@ -69,11 +69,11 @@ def preprocess_text(
 
         if use_stemming:
             cleaned_sentence = sentence_stemming(cleaned_sentence)
-            preprocessed_text.append(cleaned_sentence)
+
+        preprocessed_text.append(cleaned_sentence)
 
     if use_lemmatization:
-        text_ = preprocessed_text or text_
-        united_text = "\n".join(text_)
+        united_text = "\n".join(preprocessed_text)
         preprocessed_text = sentence_lemmatization(united_text).split("\n")
 
     result = preprocessed_text[0] if len(preprocessed_text) == 1 else preprocessed_text
