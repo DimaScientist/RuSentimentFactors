@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import io
-import sys
+import os
+import tempfile
 import uuid
 from typing import TYPE_CHECKING
 
 import requests
+from pathlib import Path
 from PIL import Image
 from fastapi.exceptions import HTTPException
 
@@ -41,6 +43,32 @@ class VKAPI:
 
         return chosen_photo_url, filename
 
+    @classmethod
+    def __store_image_to_minio(
+        cls,
+        bucket: str,
+        key: str,
+        photo_url: str,
+        filename: str,
+        minio: Minio,
+    ) -> Image:
+        """Store image to MinIO."""
+        image_response = requests.get(photo_url, stream=True)
+        image = Image.open(io.BytesIO(image_response.content))
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_path = Path(tmp_dir) / filename
+            image.save(file_path)
+
+            with open(file_path, "rb") as image_file:
+                file_size = os.fstat(image_file.fileno()).st_size
+                minio.put_object(
+                    bucket_name=bucket,
+                    object_name=key,
+                    data=image_file,
+                    length=file_size,
+                )
+        return image
+
     def download_images(self, attachments: List[Dict[str, Any]], minio: Minio) -> List[schemas.DownloadedFromVKImage]:
         """Download images from VK post."""
         downloaded_images = []
@@ -54,19 +82,7 @@ class VKAPI:
                 bucket = configurations.MINIO_BUCKET
                 key = str(uuid.uuid4())
 
-                image_response = requests.get(photo_url, stream=True)
-
-                raw_image = io.BytesIO(image_response.content)
-                image_size = sys.getsizeof(raw_image)
-
-                image = Image.open(raw_image)
-
-                minio.put_object(
-                    bucket_name=bucket,
-                    object_name=key,
-                    data=raw_image,
-                    length=image_size,
-                )
+                image = self.__store_image_to_minio(bucket, key, photo_url, filename, minio)
 
                 downloaded_images.append(
                     schemas.DownloadedFromVKImage(
