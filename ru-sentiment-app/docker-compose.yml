@@ -1,0 +1,70 @@
+version: '3.4'
+
+services:
+
+  sentiment-clickhouse:
+    container_name: sentiment-clickhouse
+    image: yandex/clickhouse-server
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8123:8123"
+      - "9002:9000"
+      - "9009:9009"
+    environment:
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER}"
+      CLICKHOUSE_PASSWORD: "${CLICKHOUSE_PASSWORD}"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    networks:
+      sentiment-network:
+
+
+  sentiment-minio:
+    container_name: sentiment-minio
+    image: minio/minio:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      sentiment-network:
+
+
+  ru-sentiment-app:
+    container_name: ru-sentiment-app
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    healthcheck:
+      test: curl -sS http://0.0.0.0:5000/healthcheck || echo 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - sentiment-clickhouse
+      - sentiment-minio
+    networks:
+      sentiment-network:
+
+volumes:
+  minio-data:
+  clickhouse-data:
+
+networks:
+  sentiment-network:
+      name: sentiment-network

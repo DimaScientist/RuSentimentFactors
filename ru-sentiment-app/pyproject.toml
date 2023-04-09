@@ -26,6 +26,7 @@ setuptools = "67.6.1"
 pandas = "1.5.2"
 lxml = "4.9.1"
 yake = "0.4.8"
+gunicorn = "20.1.0"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -17,21 +17,17 @@ from torch.utils.data import (
     TensorDataset,
 )
 from tqdm import tqdm
-from transformers import (
-    BertTokenizer,
-    BertForSequenceClassification,
-    get_linear_schedule_with_warmup,
-)
+from transformers import get_linear_schedule_with_warmup
+
+from models.common import bert_tokenizer, bert_model, TEXT_BERT_OUTPUT
 
 if TYPE_CHECKING:
     from typing import Tuple
 
-BERT_MODEL = "DeepPavlov/rubert-base-cased"
 MAX_SEQ_LENGTH = 128
 BATCH_SIZE = 32
 N_SAMPLES = 100000
 NUM_CLASSES = 3
-BERT_OUTPUT = 32
 
 LEARNING_RATE = 2e-6
 EPS = 1e-8
@@ -62,17 +58,12 @@ class TextSentimentModel(torch.nn.Module):
         return logits
 
 
-bert_tokenizer = BertTokenizer.from_pretrained(BERT_MODEL)
-bert_model = BertForSequenceClassification.from_pretrained(
-    BERT_MODEL,
-    num_labels=BERT_OUTPUT,
-    output_attentions=False,
-    output_hidden_states=False,
-)
+bert_tokenizer = bert_tokenizer
+bert_model = bert_model
 text_sentiment_model = TextSentimentModel(
     num_classes=NUM_CLASSES,
     language_model=bert_model,
-    language_model_dim=BERT_OUTPUT,
+    language_model_dim=TEXT_BERT_OUTPUT,
 )
 
 

@@ -391,7 +391,7 @@ def get_clickhouse() -> Iterator[ClickHouse]:
     clickhouse = ClickHouse(
         host=configurations.CLICKHOUSE_HOST,
         port=configurations.CLICKHOUSE_PORT,
-        username=configurations.CLICKHOUSE_ROOT_USER,
-        password=configurations.CLICKHOUSE_ROOT_PASSWORD,
+        username=configurations.CLICKHOUSE_USER,
+        password=configurations.CLICKHOUSE_PASSWORD,
     )
     yield clickhouse

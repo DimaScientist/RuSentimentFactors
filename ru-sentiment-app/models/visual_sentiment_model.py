@@ -14,18 +14,18 @@ from sklearn.metrics import f1_score
 from sklearn.preprocessing import LabelEncoder
 from torch import optim
 from torch.nn import functional as F
-from torch.utils.data import (
-    DataLoader,
-    TensorDataset,
-    SequentialSampler,
-)
+from torch.utils.data import DataLoader, TensorDataset
+
 from tqdm import tqdm
-from transformers import (
-    ViTForImageClassification,
-    ViTFeatureExtractor,
-    BertForSequenceClassification,
-    BertTokenizer,
-    get_linear_schedule_with_warmup,
+from transformers import get_linear_schedule_with_warmup
+
+from models.common import (
+    language_model,
+    visual_model,
+    vit_feature_extractor,
+    bert_feature_extractor,
+    VISUAL_VIT_OUTPUT,
+    VISUAL_BERT_OUTPUT,
 )
 
 if TYPE_CHECKING:
@@ -41,8 +41,6 @@ BATCH_SIZE = 16
 BERT_MODEL = "DeepPavlov/rubert-base-cased"
 VIT_MODEL = "google/vit-base-patch16-224"
 
-VISUAL_OUTPUT = 64
-BERT_OUTPUT = 64
 FUSION_DIM = 64
 
 DROPOUT = 0.2
@@ -64,8 +62,8 @@ LABEL_ENCODER_PATH = "./serialized/label_encoder.pkl"
 SERIALIZED_MODELS_DIR = os.path.join(os.getcwd(), "serialized")
 VISUAL_SENTIMENT_MODEL_CONFIG_PATH = os.path.join(SERIALIZED_MODELS_DIR, "sentiment_visual_model.cfg")
 
-vit_feature_extractor = ViTFeatureExtractor.from_pretrained(VIT_MODEL)
-bert_feature_extractor = BertTokenizer.from_pretrained(BERT_MODEL)
+vit_feature_extractor = vit_feature_extractor
+bert_feature_extractor = bert_feature_extractor
 
 
 def transform_sentences(sentences: List[str]) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -185,23 +183,15 @@ class MultimodalVisualSentimentModel(torch.nn.Module):
         return model_logits
 
 
-visual_model = ViTForImageClassification.from_pretrained(
-    VIT_MODEL,
-    num_labels=VISUAL_OUTPUT,
-    ignore_mismatched_sizes=True,
-)
-language_model = BertForSequenceClassification.from_pretrained(
-    BERT_MODEL,
-    num_labels=BERT_OUTPUT,
-    ignore_mismatched_sizes=True,
-)
+visual_model = visual_model
+language_model = language_model
 
 visual_sentiment_model = MultimodalVisualSentimentModel(
     num_classes=NUM_CLASSES,
     language_module=language_model,
     visual_module=visual_model,
-    language_model_dim=BERT_OUTPUT,
-    visual_model_dim=VISUAL_OUTPUT,
+    language_model_dim=VISUAL_BERT_OUTPUT,
+    visual_model_dim=VISUAL_VIT_OUTPUT,
     fusion_dim=FUSION_DIM,
     dropout_prob=DROPOUT,
 )
@@ -248,8 +238,8 @@ if __name__ == "__main__":
         num_classes=NUM_CLASSES,
         language_module=language_model,
         visual_module=visual_model,
-        language_model_dim=BERT_OUTPUT,
-        visual_model_dim=VISUAL_OUTPUT,
+        language_model_dim=VISUAL_BERT_OUTPUT,
+        visual_model_dim=VISUAL_VIT_OUTPUT,
         fusion_dim=FUSION_DIM,
         dropout_prob=DROPOUT,
     )

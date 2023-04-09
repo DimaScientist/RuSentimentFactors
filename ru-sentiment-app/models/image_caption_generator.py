@@ -4,13 +4,13 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from PIL import Image
-
-import torch
-from transformers import VisionEncoderDecoderModel, ViTFeatureExtractor, AutoTokenizer
 import nltk
+import torch
+from PIL import Image
 from nltk.corpus import stopwords
 from pymystem3 import Mystem
+
+from models.common import image_caption_tokenizer, image_caption_model, image_caption_feature_extractor
 
 if TYPE_CHECKING:
     from typing import List
@@ -20,19 +20,13 @@ nltk.download("stopwords")
 lang_stopwords = set(stopwords.words(LANGUAGE))
 mystem = Mystem()
 
-GPT_MODEL = "tuman/vit-rugpt2-image-captioning"
-
-model = VisionEncoderDecoderModel.from_pretrained(GPT_MODEL)
-feature_extractor = ViTFeatureExtractor.from_pretrained(GPT_MODEL)
-tokenizer = AutoTokenizer.from_pretrained(GPT_MODEL)
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
-
 else:
     device = torch.device("cpu")
 
-model.to(device)
+image_caption_model.to(device)
 
 
 def clean_text(sentence: str) -> str:
@@ -53,11 +47,11 @@ def predict_captions(images: List[Image]) -> List[str]:
 
         images_.append(image)
 
-    pixel_values = feature_extractor(images=images_, return_tensors="pt").pixel_values
+    pixel_values = image_caption_feature_extractor(images=images_, return_tensors="pt").pixel_values
     pixel_values = pixel_values.to(device)
 
-    output_ids = model.generate(pixel_values)
+    output_ids = image_caption_model.generate(pixel_values)
 
-    predicted_captions = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
+    predicted_captions = image_caption_tokenizer.batch_decode(output_ids, skip_special_tokens=True)
     predicted_captions = [clean_text(predicted_caption.strip()) for predicted_caption in predicted_captions]
     return predicted_captions

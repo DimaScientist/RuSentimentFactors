@@ -53,8 +53,8 @@ class Config(BaseConfig):
     """CLICKHOUSE CONFIGURATIONS."""
     CLICKHOUSE_HOST: str
     CLICKHOUSE_PORT: int
-    CLICKHOUSE_ROOT_USER: str
-    CLICKHOUSE_ROOT_PASSWORD: Optional[str] = None
+    CLICKHOUSE_USER: str
+    CLICKHOUSE_PASSWORD: Optional[str] = None
 
     @root_validator
     def check_and_create_necessary_objects(
@@ -77,10 +77,10 @@ class Config(BaseConfig):
         clickhouse_settings = dict(
             host=values.get("CLICKHOUSE_HOST"),
             port=values.get("CLICKHOUSE_PORT"),
-            username=values.get("CLICKHOUSE_ROOT_USER"),
+            username=values.get("CLICKHOUSE_USER"),
         )
-        if values.get("CLICKHOUSE_ROOT_PASSWORD"):
-            clickhouse_settings["password"] = values.get("CLICKHOUSE_ROOT_PASSWORD")
+        if values.get("CLICKHOUSE_PASSWORD"):
+            clickhouse_settings["password"] = values.get("CLICKHOUSE_PASSWORD")
 
         clickhouse_client = clickhouse_connect.get_client(**clickhouse_settings)
         tables = clickhouse_client.command("SHOW TABLES").split("\n")
