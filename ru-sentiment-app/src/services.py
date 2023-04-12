@@ -6,10 +6,10 @@ import uuid
 
 from loguru import logger
 from typing import TYPE_CHECKING
-from tqdm import tqdm
 from PIL import Image
 
 from models import predict_captions
+from src.errors import BadRequestException
 from src.schemas import PredictionResult
 from src.ml_sentiment_model import MLSentimentModel
 
@@ -150,12 +150,15 @@ def get_prediction_for_vk_post(
     post_id = post_url.split("wall")[-1]
     post = vk_api.get_post_by_id(post_id, minio)
 
-    prediction_id = predict_and_store_result_for_post(post, click_house)
+    if post.text or post.saved_images:
+        prediction_id = predict_and_store_result_for_post(post, click_house)
 
-    result = get_prediction_details(prediction_id, click_house)
+        result = get_prediction_details(prediction_id, click_house)
 
-    logger.info("Sentiment analysis for post complete.")
-    return result
+        logger.info("Sentiment analysis for post complete.")
+        return result
+    else:
+        raise BadRequestException(message=f"Post {post.post_id} hasn't images and text.")
 
 
 def get_summary_prediction_for_vk_wall(
@@ -175,8 +178,11 @@ def get_summary_prediction_for_vk_wall(
     logger.info(f"Predict sentiment for posts from owner {owner_url} wall:")
     for i, post in enumerate(posts, start=1):
         logger.info(f"{i} / {len(posts)}: {post.post_id}.")
-        prediction_id = predict_and_store_result_for_post(post, click_house)
-        prediction_ids.append(prediction_id)
+        if post.text or post.saved_images:
+            prediction_id = predict_and_store_result_for_post(post, click_house)
+            prediction_ids.append(prediction_id)
+        else:
+            logger.info(f"Post {post.post_id} hasn't images and text.")
 
     logger.info("Sentiment analysis for wall complete.")
     result = click_house.prediction_summary(features, expand, prediction_ids)

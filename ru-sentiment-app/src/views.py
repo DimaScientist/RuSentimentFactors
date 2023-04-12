@@ -15,12 +15,7 @@ from src import app, configurations, services
 from src.clickhouse_client import ClickHouse, get_clickhouse
 from src.errors import NotAllowedException, NotFoundException, BadRequestException
 from src.minio_client import Minio, get_minio
-from src.schemas import (
-    DetailedPredictionData,
-    HealthCheck,
-    PredictionResult,
-    Summary,
-)
+from src.schemas import DetailedPredictionData, HealthCheck, PredictionResult, Summary
 from src.vk_api import VKAPI
 
 

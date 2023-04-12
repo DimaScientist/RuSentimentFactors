@@ -120,7 +120,11 @@ class VKAPI:
         if post_response.status_code != 200:
             raise HTTPException(status_code=post_response.status_code, detail=post_response.text)
 
-        post = post_response.json().get("response")[0]
+        response = post_response.json().get("response")
+        if type(response) == list:
+            post = response[0]
+        else:
+            post = response
 
         return self.download_post(post, minio)
 
