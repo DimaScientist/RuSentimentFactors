@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 class MLSentimentModel:
     """Model for sentiment classification."""
+    alpha = 0.67
 
     def __init__(self):
         self.label_encoder: LabelEncoder = Models.label_encoder.load()
@@ -125,6 +126,16 @@ class MLSentimentModel:
 
         return self.__form_prediction(predictions)
 
+    def __sentiment_from_float_to_int(self, sentiment: float) -> int:
+        """Parse sentiment float value to int."""
+        if sentiment < self.alpha:
+            sentiment_int = 0
+        elif self.alpha <= sentiment < 2 * self.alpha:
+            sentiment_int = 1
+        else:
+            sentiment_int = 2
+        return sentiment_int
+
     def __form_prediction_result(
         self,
         text_predictions: Optional[schemas.ModelSentimentSimplePrediction],
@@ -144,7 +155,7 @@ class MLSentimentModel:
             prediction_details.image_sentiment = [prediction.predict_proba for prediction in image_predictions]
             image_predictions_ = [prediction.sentiment for prediction in image_predictions]
             sentiment_labels = self.label_encoder.transform(image_predictions_)
-            image_sentiment = [np.mean(sentiment_labels).astype("uint8")]
+            image_sentiment = [self.__sentiment_from_float_to_int(np.mean(sentiment_labels))]
 
             result = schemas.PredictionResult(
                 prediction_result=self.label_encoder.inverse_transform(image_sentiment)[0],
@@ -161,8 +172,8 @@ class MLSentimentModel:
 
             sentiment_results = np.concatenate((np.full_like(image_labels, text_label), image_labels), axis=0)
 
-            summary_result_index = [np.mean(sentiment_results).astype("uint8")]
-            summary_result = self.label_encoder.inverse_transform(summary_result_index)[0]
+            summary_result_index = self.__sentiment_from_float_to_int(np.mean(sentiment_results))
+            summary_result = self.label_encoder.inverse_transform([summary_result_index])[0]
             result = schemas.PredictionResult(
                 prediction_result=summary_result,
                 prediction_details=prediction_details,
