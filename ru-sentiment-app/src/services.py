@@ -64,6 +64,8 @@ def get_prediction_by_text_and_images(
                 saved_images,
             )
 
+    logger.info(f"Prediction by image and text result: {prediction_result.dict()}.")
+
     return prediction_result
 
 
@@ -73,6 +75,7 @@ def set_labeled_sentiment_to_prediction(
     click_house: ClickHouse,
 ) -> None:
     """Set labeled sentiment to prediction."""
+    logger.info(f"Set human sentiment to {str(prediction_id)} is {sentiment}.")
     return click_house.set_labeled_prediction(prediction_id, sentiment)
 
 
@@ -82,6 +85,7 @@ def get_prediction_summary(
     click_house: ClickHouse,
 ) -> Summary:
     """Get prediction summary."""
+    logger.info(f"Get prediction summary with options:\nadd features{features}\nadd predictions:{expand}.")
     return click_house.prediction_summary(features, expand)
 
 
@@ -90,6 +94,7 @@ def get_prediction_details(
     click_house: ClickHouse,
 ) -> DetailedPredictionData:
     """Get prediction details."""
+    logger.info(f"Get prediction details for {str(prediction_id)}.")
     return click_house.get_prediction_by_id(prediction_id)
 
 
@@ -98,6 +103,8 @@ def predict_and_store_result_for_post(post: DownloadedPostFromVK, click_house: C
     text = post.text
     images = []
     captions = []
+
+    logger.info(f"Start sentiment analysis for post {post.post_id}...")
     for image_info in post.saved_images:
         pil_image = image_info.image
         caption = image_info.caption or predict_captions([pil_image])[0]
@@ -105,7 +112,16 @@ def predict_and_store_result_for_post(post: DownloadedPostFromVK, click_house: C
         images.append(pil_image)
         captions.append(caption)
 
+    logger.info(
+        f"""
+    Post info: id={post.post_id}
+    has text={text is not None}
+    has images={post.saved_images is not None and len(post.saved_images) > 0}.
+    """
+    )
+
     prediction_result = ml_sentiment_model.predict(text, images, captions)
+    logger.info(f"Prediction result {prediction_result.dict()}.")
 
     prediction_id = click_house.insert_prediction(
         prediction=prediction_result,
@@ -130,6 +146,7 @@ def get_prediction_for_vk_post(
     minio: Minio,
 ) -> DetailedPredictionData:
     """Get prediction for VK post."""
+    logger.info(f"Predict sentiment for post: {post_url}...")
     post_id = post_url.split("wall")[-1]
     post = vk_api.get_post_by_id(post_id, minio)
 
@@ -137,6 +154,7 @@ def get_prediction_for_vk_post(
 
     result = get_prediction_details(prediction_id, click_house)
 
+    logger.info("Sentiment analysis for post complete.")
     return result
 
 
@@ -155,9 +173,11 @@ def get_summary_prediction_for_vk_wall(
 
     prediction_ids = []
     logger.info(f"Predict sentiment for posts from owner {owner_url} wall:")
-    for post in tqdm(posts):
+    for i, post in enumerate(posts, start=1):
+        logger.info(f"{i} / {len(posts)}: {post.post_id}.")
         prediction_id = predict_and_store_result_for_post(post, click_house)
         prediction_ids.append(prediction_id)
 
+    logger.info("Sentiment analysis for wall complete.")
     result = click_house.prediction_summary(features, expand, prediction_ids)
     return result

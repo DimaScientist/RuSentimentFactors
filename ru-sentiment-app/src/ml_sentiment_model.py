@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 class MLSentimentModel:
     """Model for sentiment classification."""
+
     alpha = 0.67
 
     def __init__(self):

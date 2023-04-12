@@ -1,11 +1,12 @@
 """Endpoints."""
 from __future__ import annotations
 
+import time
 import traceback
-from typing import List, Optional
-from uuid import UUID
+from typing import List, Optional, Callable, Awaitable
+from uuid import UUID, uuid4
 
-from fastapi import Depends, Form, HTTPException, UploadFile, Query
+from fastapi import Depends, Form, HTTPException, UploadFile, Query, Response
 from loguru import logger
 from requests import Request
 from starlette.responses import JSONResponse
@@ -21,6 +22,9 @@ from src.schemas import (
     Summary,
 )
 from src.vk_api import VKAPI
+
+
+HTTPMiddlewareCallableType = Callable[[Request], Awaitable[Response]]
 
 
 @app.exception_handler(NotAllowedException)
@@ -48,6 +52,25 @@ def unhandled_bad_request_exception(
 ) -> JSONResponse:
     """Return json response for raised BadRequestException."""
     return JSONResponse(status_code=400, content={"detail": exc.message})
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next: HTTPMiddlewareCallableType) -> Response:  # pragma: no cover
+    """FastAPI middleware that will log all requests."""  # noqa: D403
+    if "/ping" in request.url.path:
+        return await call_next(request)
+
+    request_id = str(uuid4())
+    logger.info(f"rid={request_id} start request method={request.method} path={request.url.path}")
+    start_time = time.time()
+
+    response = await call_next(request)
+
+    process_time = (time.time() - start_time) * 1000
+    formatted_process_time = "{0:.2f}".format(process_time)
+    logger.info(f"rid={request_id} completed_in={formatted_process_time}ms status_code={response.status_code}")
+
+    return response
 
 
 @app.exception_handler(Exception)
