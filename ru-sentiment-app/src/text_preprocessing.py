@@ -83,7 +83,7 @@ def preprocess_text(
 def extract_features_from_text(
     text: Union[List[str], str],
     tokenizer: AutoTokenizer,
-    clean_text: bool = True,
+    clean_text: bool = False,
     use_lemmatization: bool = False,
     use_stemming: bool = False,
     sequence_length: int = 128,

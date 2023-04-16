@@ -85,6 +85,7 @@ class MLSentimentModel:
         input_ids, attention_mask = extract_features_from_text(
             captions,
             self.bert_tokenizer,
+            clean_text=True,
             use_lemmatization=True,
         )
 
@@ -112,7 +113,6 @@ class MLSentimentModel:
         input_ids, attention_mask = extract_features_from_text(
             text,
             self.bert_tokenizer,
-            use_lemmatization=True,
         )
 
         input_ids.to("cpu")

@@ -329,12 +329,7 @@ class ClickHouse:
         result = Summary(**summary_result)
 
         if add_features:
-            feature_extractor = yake.KeywordExtractor(
-                lan="ru",
-                n=3,
-                dedupLim=0.3,
-                top=10,
-            )
+            feature_extractor = yake.KeywordExtractor(lan="ru", n=3, dedupLim=0.9, top=10)
             sentiment_features = {
                 "positive": [],
                 "neutral": [],
@@ -343,6 +338,8 @@ class ClickHouse:
 
             for sentiment in sentiment_features.keys():
                 corpus = self.get_sentiment_corpus(sentiment, True)
+                if type(corpus) is not list:
+                    corpus = [corpus]
                 if corpus:
                     corpus = ". ".join(corpus)
                     features = feature_extractor.extract_keywords(corpus)
@@ -363,12 +360,12 @@ class ClickHouse:
             """
             SELECT
                 prediction.id,
-                prediction.text AS text,
+                prediction.clean_text AS text,
                 groupArray(i.caption) AS captions
             FROM prediction
             LEFT JOIN image i on prediction.id = i.prediction_id
             WHERE predicted_value = {sentiment:String}
-            GROUP BY prediction.id, prediction.text
+            GROUP BY prediction.id, prediction.clean_text
             """,
             parameters=parameters,
         )

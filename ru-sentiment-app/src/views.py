@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse
 
 from src import app, configurations, services
 from src.clickhouse_client import ClickHouse, get_clickhouse
+from src.enums import Sentiment
 from src.errors import NotAllowedException, NotFoundException, BadRequestException
 from src.minio_client import Minio, get_minio
 from src.schemas import DetailedPredictionData, HealthCheck, PredictionResult, Summary
@@ -114,21 +115,22 @@ def get_prediction_details(
 @app.put("/common/prediction/{prediction_id}")
 def set_labeled_prediction(
     prediction_id: UUID,
-    sentiment: str = Form(..., description="Sentiment class: negative, neutral or positive.", example="negative"),
+    sentiment: Sentiment = Form(..., description="Sentiment class: negative, neutral or positive.", example="negative"),
     click_house: ClickHouse = Depends(get_clickhouse),
-) -> None:
+):
     """Set human label to prediction."""
+    sentiment_value = sentiment.value
     return services.set_labeled_sentiment_to_prediction(
         prediction_id,
-        sentiment,
+        sentiment_value,
         click_house,
     )
 
 
 @app.get("/common/summary")
 def get_prediction_summary_result(
-    features: Optional[bool] = Query(None, description="Add features."),
-    expand: Optional[bool] = Query(None, description="Add short prediction results."),
+    features: Optional[bool] = Query(True, description="Add features."),
+    expand: Optional[bool] = Query(False, description="Add short prediction results."),
     click_house: ClickHouse = Depends(get_clickhouse),
 ) -> Summary:
     """Get sentiment statistic by data."""
@@ -153,8 +155,8 @@ def get_prediction_by_post(
 @app.get("/vk/wall")
 def get_prediction_by_wall(
     owner_url: str = Query(..., example="https://vk.com/iik.ssau", description="Group or user URL."),
-    features: Optional[bool] = Query(None, description="Add features."),
-    expand: Optional[bool] = Query(None, description="Add short prediction results."),
+    features: Optional[bool] = Query(True, description="Add features."),
+    expand: Optional[bool] = Query(False, description="Add short prediction results."),
     api_token: Optional[str] = Query(default=None, descriprion="Access token to VK."),
     post_count: int = Query(default=10, ge=1, le=100, description="Wall post count."),
     click_house: ClickHouse = Depends(get_clickhouse),

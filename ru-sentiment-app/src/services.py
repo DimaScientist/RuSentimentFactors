@@ -11,6 +11,7 @@ from PIL import Image
 from models import predict_captions
 from src.errors import BadRequestException
 from src.schemas import PredictionResult
+from src.text_preprocessing import preprocess_text
 from src.ml_sentiment_model import MLSentimentModel
 
 if TYPE_CHECKING:
@@ -37,6 +38,8 @@ def get_prediction_by_text_and_images(
     pil_images = None
     image_captions = None
 
+    clean_text = preprocess_text(text, use_lemmatization=True)
+
     if images:
         pil_images = []
         for image in images:
@@ -44,12 +47,13 @@ def get_prediction_by_text_and_images(
             pil_images.append(Image.open(image_bytes))
         image_captions = predict_captions(pil_images)
 
-    prediction_result = ml_sentiment_model.predict(text, pil_images, image_captions)
+    prediction_result = ml_sentiment_model.predict(clean_text, pil_images, image_captions)
 
     if store:
         prediction_id = click_house.insert_prediction(
             prediction_result,
             text=text,
+            clean_text=clean_text,
         )
         prediction_result.prediction_id = prediction_id
         if images:
@@ -120,13 +124,15 @@ def predict_and_store_result_for_post(post: DownloadedPostFromVK, click_house: C
     """
     )
 
-    prediction_result = ml_sentiment_model.predict(text, images, captions)
+    clean_text = preprocess_text(text, use_lemmatization=True)
+    prediction_result = ml_sentiment_model.predict(clean_text, images, captions)
     logger.info(f"Prediction result {prediction_result.dict()}.")
 
     prediction_id = click_house.insert_prediction(
         prediction=prediction_result,
         post_id=post.post_id,
         text=text,
+        clean_text=clean_text,
     )
 
     if images:

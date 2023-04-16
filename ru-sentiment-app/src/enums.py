@@ -25,9 +25,9 @@ SERIALIZED_MODELS_PATH = Path(os.getcwd()) / "models" / "serialized"
 class Sentiment(Enum):
     """Sentiment enum."""
 
-    negative = 0
-    neutral = 1
-    positive = 2
+    negative = "negative"
+    neutral = "neutral"
+    positive = "positive"
 
 
 class Tables(Enum):
@@ -51,7 +51,8 @@ class Tables(Enum):
             labeled_value Nullable(String) comment 'Human labeled value',
             text_prediction_details_id Nullable(UUID) comment 'Text prediction details'
         )
-         engine = Memory;
+         engine = MergeTree()
+         order by id;
         """
         return script
 
@@ -70,7 +71,8 @@ class Tables(Enum):
             prediction_details_id Nullable(UUID) comment 'Prediction details',
             filename String comment 'Image file name'
         )
-            engine = Memory;
+            engine = MergeTree()
+            order by id;
         """
         return script
 
@@ -85,7 +87,8 @@ class Tables(Enum):
             neutral  Float64 comment 'Neutral class probability',
             positive Float64 comment 'Positive class probability'
         )
-            engine = Memory;
+            engine = MergeTree()
+            order by id;
         """
         return script
 
